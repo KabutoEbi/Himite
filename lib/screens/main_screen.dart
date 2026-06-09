@@ -85,8 +85,10 @@ class _MainScreenState extends State<MainScreen> {
                     itemBuilder: (context, index) {
                       final p = filtered[index];
                       return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         child: ListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           title: Text(p.title),
                           subtitle: Text([
                             p.place,
@@ -94,28 +96,30 @@ class _MainScreenState extends State<MainScreen> {
                             if (p.number > 0) '${p.number}人',
                             _formatDateTime(p.time)
                           ].join(' • ')),
-                          trailing: SizedBox(
-                            width: 96,
-                            height: 48,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Flexible(child: Text('締切 ${_formatDateTime(p.deadline)}', overflow: TextOverflow.ellipsis)),
-                                const SizedBox(height: 4),
-                                IconButton(
-                                  iconSize: 20,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                                  icon: Icon(
-                                    p.isParticipating ? Icons.check_circle : Icons.check_circle_outline,
-                                    color: p.isParticipating ? Colors.green : null,
-                                  ),
-                                  onPressed: () => widget.onToggleParticipate(p.id),
-                                  tooltip: p.isParticipating ? '参加を取り消す' : '参加予定にする',
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  '締切 ${_formatDateTime(p.deadline)}',
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                  style: Theme.of(context).textTheme.bodySmall,
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                iconSize: 20,
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                icon: Icon(
+                                  p.isParticipating ? Icons.check_circle : Icons.check_circle_outline,
+                                  color: p.isParticipating ? Colors.green : null,
+                                ),
+                                onPressed: () => widget.onToggleParticipate(p.id),
+                                tooltip: p.isParticipating ? '参加を取り消す' : '参加予定にする',
+                              ),
+                            ],
                           ),
                         ),
                       );
