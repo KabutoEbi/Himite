@@ -79,7 +79,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
           Expanded(
             child: filtered.isEmpty
-                ? const Center(child: Text('該当する募集はありません'))
+                ? const Center(child: Text('募集ないよ'))
                 : ListView.builder(
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {

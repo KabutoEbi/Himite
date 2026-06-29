@@ -50,7 +50,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    // validate time fields and show inline errors
     setState(() {
       _timeError = null;
       _deadlineError = null;
@@ -61,12 +60,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       hasError = true;
     }
     if (_selectedDeadline == null) {
-      setState(() => _deadlineError = '締め切り日時を選択してください');
+      setState(() => _deadlineError = '締切日時を選択してください');
       hasError = true;
     }
     if (hasError) return;
-    if (_selectedDeadline!.isBefore(_selectedTime!)) {
-      setState(() => _deadlineError = '締切が開催日時より前になっています');
+    if (_selectedTime!.isBefore(_selectedDeadline!)) {
+      setState(() => _deadlineError = '開催日時が締切日時より前になっています');
       return;
     }
     final number = _numberController.text.trim().isEmpty
@@ -161,7 +160,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ListTile(
-                    title: const Text('締め切り日時'),
+                    title: const Text('締切日時'),
                     subtitle: Text(_selectedDeadline == null ? '未選択' : _formatDateTime(_selectedDeadline!)),
                     trailing: TextButton(
                       onPressed: () async {
