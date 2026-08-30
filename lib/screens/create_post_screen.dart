@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/post.dart';
+import '../utils/date_time_format.dart';
 
 class CreatePostScreen extends StatefulWidget {
   final String currentUserId;
@@ -19,11 +20,12 @@ class CreatePostScreen extends StatefulWidget {
 }
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
+  static const _availableGroups = ['全体', '親しい友達', 'サッカー部', '大学の友達'];
+
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
   late final TextEditingController _placeController;
   late final TextEditingController _numberController;
-  final List<String> _availableGroups = ['全体', '親しい友達', 'サッカー部', '大学の友達'];
   late String _selectedGroup;
   DateTime? _selectedTime;
   DateTime? _selectedDeadline;
@@ -155,44 +157,20 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 controller: _numberController,
                 decoration: const InputDecoration(labelText: '人数（任意）'),
                 keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) return null;
-                  final number = int.tryParse(value);
-                  if (number == null || number <= 0) return '1以上の数値を入力してください';
-                  final participants =
-                      widget.initialPost?.participantCount ?? 0;
-                  if (number < participants) return '現在の参加者数以上にしてください';
-                  return null;
-                },
+                validator: _capacityValidator,
               ),
               const SizedBox(height: 12),
               _DateTimeField(
                 label: '開催日時',
                 value: _selectedTime,
                 errorText: _timeError,
-                onPressed: () async {
-                  final dateTime = await _pickDateTime(_selectedTime);
-                  if (dateTime != null && mounted) {
-                    setState(() {
-                      _selectedTime = dateTime;
-                      _timeError = null;
-                    });
-                  }
-                },
+                onPressed: () => _selectDateTime(isDeadline: false),
               ),
               _DateTimeField(
                 label: '締切日時',
                 value: _selectedDeadline,
                 errorText: _deadlineError,
-                onPressed: () async {
-                  final dateTime = await _pickDateTime(_selectedDeadline);
-                  if (dateTime != null && mounted) {
-                    setState(() {
-                      _selectedDeadline = dateTime;
-                      _deadlineError = null;
-                    });
-                  }
-                },
+                onPressed: () => _selectDateTime(isDeadline: true),
               ),
               const SizedBox(height: 24),
               FilledButton(
@@ -209,6 +187,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   String? _requiredValidator(String? value) =>
       value == null || value.trim().isEmpty ? '必須項目です' : null;
+
+  String? _capacityValidator(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final capacity = int.tryParse(value);
+    if (capacity == null || capacity <= 0) return '1以上の数値を入力してください';
+    final participantCount = widget.initialPost?.participantCount ?? 0;
+    if (capacity < participantCount) return '現在の参加者数以上にしてください';
+    return null;
+  }
+
+  Future<void> _selectDateTime({required bool isDeadline}) async {
+    final currentValue = isDeadline ? _selectedDeadline : _selectedTime;
+    final dateTime = await _pickDateTime(currentValue);
+    if (dateTime == null || !mounted) return;
+    setState(() {
+      if (isDeadline) {
+        _selectedDeadline = dateTime;
+        _deadlineError = null;
+      } else {
+        _selectedTime = dateTime;
+        _timeError = null;
+      }
+    });
+  }
 }
 
 class _DateTimeField extends StatelessWidget {
@@ -231,7 +233,7 @@ class _DateTimeField extends StatelessWidget {
       children: [
         ListTile(
           title: Text(label),
-          subtitle: Text(value == null ? '未選択' : _formatDateTime(value!)),
+          subtitle: Text(value == null ? '未選択' : formatDateTime(value!)),
           trailing: TextButton(onPressed: onPressed, child: const Text('選択')),
         ),
         if (errorText != null)
@@ -247,11 +249,5 @@ class _DateTimeField extends StatelessWidget {
           ),
       ],
     );
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    String two(int number) => number.toString().padLeft(2, '0');
-    return '${dateTime.year}/${two(dateTime.month)}/${two(dateTime.day)} '
-        '${two(dateTime.hour)}:${two(dateTime.minute)}';
   }
 }

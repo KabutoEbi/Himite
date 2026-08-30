@@ -37,6 +37,10 @@ class Post {
 
   bool isParticipating(String userId) => participantIds.contains(userId);
 
+  bool canToggleParticipation(String userId, DateTime dateTime) {
+    return isParticipating(userId) || (!isClosedAt(dateTime) && hasCapacity);
+  }
+
   bool addParticipant({required String userId, required String displayName}) {
     if (isParticipating(userId) || !hasCapacity) return false;
     participantIds.add(userId);

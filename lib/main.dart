@@ -39,69 +39,81 @@ class _MyAppState extends State<MyApp> {
     _posts = List<Post>.of(widget.initialPosts);
   }
 
-  void _addPost(Post p) {
-    setState(() {
-      _posts.insert(0, p);
-    });
-    unawaited(_savePost(p));
+  void _addPost(Post post) {
+    setState(() => _posts.insert(0, post));
+    _persistPost(post);
   }
 
   void _toggleParticipating(String id) {
+    final post = _postById(id);
+    if (post == null) return;
+
+    var changed = false;
     setState(() {
-      final i = _posts.indexWhere((p) => p.id == id);
-      if (i != -1) {
-        final post = _posts[i];
-        if (post.isParticipating(_currentUserId)) {
-          post.removeParticipant(_currentUserId);
-        } else if (!post.isClosedAt(DateTime.now())) {
-          post.addParticipant(
-            userId: _currentUserId,
-            displayName: _currentUserName,
-          );
-        }
+      if (post.isParticipating(_currentUserId)) {
+        changed = post.removeParticipant(_currentUserId);
+      } else if (post.canToggleParticipation(_currentUserId, DateTime.now())) {
+        changed = post.addParticipant(
+          userId: _currentUserId,
+          displayName: _currentUserName,
+        );
       }
     });
-    final post = _posts.where((post) => post.id == id).firstOrNull;
-    if (post != null) unawaited(_savePost(post));
+    if (changed) _persistPost(post);
   }
 
   void _updatePost(Post updatedPost) {
-    setState(() {
-      final index = _posts.indexWhere((post) => post.id == updatedPost.id);
-      if (index != -1) _posts[index] = updatedPost;
-    });
-    unawaited(_savePost(updatedPost));
+    if (!_replacePost(updatedPost)) return;
+    _persistPost(updatedPost);
   }
 
   void _deletePost(String id) {
+    if (_postById(id) == null) return;
     setState(() => _posts.removeWhere((post) => post.id == id));
-    unawaited(_deleteSavedPost(id));
+    unawaited(
+      _runPersistence(
+        widget.repository.deletePost(id),
+        errorMessage: '募集の削除に失敗しました',
+      ),
+    );
   }
 
   void _closePost(String id) {
-    setState(() {
-      final index = _posts.indexWhere((post) => post.id == id);
-      if (index != -1) {
-        _posts[index] = _posts[index].copyWith(isManuallyClosed: true);
-      }
-    });
-    final post = _posts.where((post) => post.id == id).firstOrNull;
-    if (post != null) unawaited(_savePost(post));
+    final post = _postById(id);
+    if (post == null || post.isManuallyClosed) return;
+    final closedPost = post.copyWith(isManuallyClosed: true);
+    _replacePost(closedPost);
+    _persistPost(closedPost);
   }
 
-  Future<void> _savePost(Post post) async {
-    try {
-      await widget.repository.savePost(post);
-    } on Object catch (error) {
-      debugPrint('募集の保存に失敗しました: $error');
-    }
+  Post? _postById(String id) {
+    return _posts.where((post) => post.id == id).firstOrNull;
   }
 
-  Future<void> _deleteSavedPost(String id) async {
+  bool _replacePost(Post updatedPost) {
+    final index = _posts.indexWhere((post) => post.id == updatedPost.id);
+    if (index == -1) return false;
+    setState(() => _posts[index] = updatedPost);
+    return true;
+  }
+
+  void _persistPost(Post post) {
+    unawaited(
+      _runPersistence(
+        widget.repository.savePost(post),
+        errorMessage: '募集の保存に失敗しました',
+      ),
+    );
+  }
+
+  Future<void> _runPersistence(
+    Future<void> operation, {
+    required String errorMessage,
+  }) async {
     try {
-      await widget.repository.deletePost(id);
+      await operation;
     } on Object catch (error) {
-      debugPrint('募集の削除に失敗しました: $error');
+      debugPrint('$errorMessage: $error');
     }
   }
 
