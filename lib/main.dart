@@ -15,6 +15,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  static const _currentUserId = 'local-user';
+  static const _currentUserName = 'あなた';
   final List<Post> _posts = [];
 
   void _addPost(Post p) {
@@ -27,7 +29,15 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       final i = _posts.indexWhere((p) => p.id == id);
       if (i != -1) {
-        _posts[i].isParticipating = !_posts[i].isParticipating;
+        final post = _posts[i];
+        if (post.isParticipating(_currentUserId)) {
+          post.removeParticipant(_currentUserId);
+        } else {
+          post.addParticipant(
+            userId: _currentUserId,
+            displayName: _currentUserName,
+          );
+        }
       }
     });
   }
@@ -40,7 +50,12 @@ class _MyAppState extends State<MyApp> {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: MainScreen(posts: _posts, onAddPost: _addPost, onToggleParticipate: _toggleParticipating),
+      home: MainScreen(
+        posts: _posts,
+        currentUserId: _currentUserId,
+        onAddPost: _addPost,
+        onToggleParticipate: _toggleParticipating,
+      ),
     );
   }
 }

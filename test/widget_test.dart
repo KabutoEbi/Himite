@@ -1,30 +1,66 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:himite/main.dart';
+import 'package:himite/models/post.dart';
+import 'package:himite/screens/main_screen.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('Post participant management', () {
+    test('adds and removes a participant', () {
+      final post = _post(capacity: 2);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      expect(post.addParticipant(userId: 'user-1', displayName: 'あなた'), isTrue);
+      expect(post.participantCount, 1);
+      expect(post.isParticipating('user-1'), isTrue);
+      expect(post.participants, ['あなた']);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      expect(post.removeParticipant('user-1'), isTrue);
+      expect(post.participantCount, 0);
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    test('does not exceed capacity', () {
+      final post = _post(capacity: 1);
+
+      expect(post.addParticipant(userId: 'user-1', displayName: 'あなた'), isTrue);
+      expect(post.addParticipant(userId: 'user-2', displayName: '友達'), isFalse);
+      expect(post.participantCount, 1);
+      expect(post.hasCapacity, isFalse);
+    });
   });
+
+  testWidgets('shows participant count and participant list', (tester) async {
+    final post = _post(capacity: 3)
+      ..addParticipant(userId: 'user-1', displayName: 'あなた');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MainScreen(
+          posts: [post],
+          currentUserId: 'user-1',
+          onAddPost: (_) {},
+          onToggleParticipate: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.text('参加 1/3人'), findsOneWidget);
+    await tester.tap(find.byKey(ValueKey('participants-${post.id}')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('参加者（1人）'), findsOneWidget);
+    expect(find.text('あなた'), findsOneWidget);
+  });
+}
+
+Post _post({required int capacity}) {
+  final now = DateTime.now();
+  return Post(
+    id: 'post-1',
+    title: '昼ごはん',
+    place: '食堂',
+    time: now.add(const Duration(hours: 2)),
+    number: capacity,
+    group: '全体',
+    deadline: now.add(const Duration(hours: 1)),
+    createdAt: now,
+  );
 }
