@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/post.dart';
 import 'create_post_screen.dart';
+import 'post_detail_screen.dart';
 
 enum PostFilter { open, joining, closed }
 
@@ -103,6 +104,15 @@ class _MainScreenState extends State<MainScreen> {
                           vertical: 4,
                         ),
                         child: ListTile(
+                          onTap: () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => PostDetailScreen(
+                                post: p,
+                                currentUserId: widget.currentUserId,
+                                onToggleParticipate: widget.onToggleParticipate,
+                              ),
+                            ),
+                          ),
                           dense: true,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,

@@ -49,6 +49,45 @@ void main() {
     expect(find.text('参加者（1人）'), findsOneWidget);
     expect(find.text('あなた'), findsOneWidget);
   });
+
+  testWidgets('opens details and allows participation', (tester) async {
+    final post = _post(capacity: 3);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MainScreen(
+          posts: [post],
+          currentUserId: 'user-1',
+          onAddPost: (_) {},
+          onToggleParticipate: (_) {
+            if (post.isParticipating('user-1')) {
+              post.removeParticipant('user-1');
+            } else {
+              post.addParticipant(userId: 'user-1', displayName: 'あなた');
+            }
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('昼ごはん'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('募集詳細'), findsOneWidget);
+    expect(find.text('開催日時'), findsOneWidget);
+    expect(find.text('0/3人'), findsOneWidget);
+
+    final participateButton = find.byKey(
+      const ValueKey('detail-participate-button'),
+    );
+    await tester.ensureVisible(participateButton);
+    await tester.tap(participateButton);
+    await tester.pump();
+
+    expect(find.text('1/3人'), findsOneWidget);
+    expect(find.text('あなた'), findsOneWidget);
+    expect(find.text('参加を取り消す'), findsOneWidget);
+  });
 }
 
 Post _post({required int capacity}) {
