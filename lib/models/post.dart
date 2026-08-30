@@ -1,5 +1,6 @@
 class Post {
   final String id;
+  final String authorId;
   final String title;
   final String place;
   final DateTime time;
@@ -7,11 +8,13 @@ class Post {
   final String group;
   final DateTime deadline;
   final DateTime createdAt;
+  final bool isManuallyClosed;
   final Set<String> participantIds;
   final Map<String, String> participantNames;
 
   Post({
     required this.id,
+    required this.authorId,
     Set<String>? participantIds,
     Map<String, String>? participantNames,
     required this.title,
@@ -21,12 +24,16 @@ class Post {
     required this.group,
     required this.deadline,
     required this.createdAt,
+    this.isManuallyClosed = false,
   }) : participantIds = participantIds ?? <String>{},
        participantNames = participantNames ?? <String, String>{};
 
   int get participantCount => participantIds.length;
 
   bool get hasCapacity => number <= 0 || participantCount < number;
+
+  bool isClosedAt(DateTime dateTime) =>
+      isManuallyClosed || !dateTime.isBefore(deadline);
 
   bool isParticipating(String userId) => participantIds.contains(userId);
 
@@ -47,6 +54,7 @@ class Post {
       .toList(growable: false);
 
   factory Post.create({
+    required String authorId,
     required String title,
     required String place,
     required DateTime time,
@@ -59,6 +67,7 @@ class Post {
     final now = DateTime.now();
     return Post(
       id: now.millisecondsSinceEpoch.toString(),
+      authorId: authorId,
       participantIds: participantIds,
       participantNames: participantNames,
       title: title,
@@ -68,6 +77,31 @@ class Post {
       group: group,
       deadline: deadline,
       createdAt: now,
+    );
+  }
+
+  Post copyWith({
+    String? title,
+    String? place,
+    DateTime? time,
+    int? number,
+    String? group,
+    DateTime? deadline,
+    bool? isManuallyClosed,
+  }) {
+    return Post(
+      id: id,
+      authorId: authorId,
+      title: title ?? this.title,
+      place: place ?? this.place,
+      time: time ?? this.time,
+      number: number ?? this.number,
+      group: group ?? this.group,
+      deadline: deadline ?? this.deadline,
+      createdAt: createdAt,
+      isManuallyClosed: isManuallyClosed ?? this.isManuallyClosed,
+      participantIds: Set<String>.of(participantIds),
+      participantNames: Map<String, String>.of(participantNames),
     );
   }
 }

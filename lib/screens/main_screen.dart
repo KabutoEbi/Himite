@@ -10,6 +10,9 @@ class MainScreen extends StatefulWidget {
   final List<Post> posts;
   final String currentUserId;
   final void Function(Post) onAddPost;
+  final void Function(Post) onUpdatePost;
+  final void Function(String) onDeletePost;
+  final void Function(String) onClosePost;
   final void Function(String) onToggleParticipate;
 
   const MainScreen({
@@ -17,6 +20,9 @@ class MainScreen extends StatefulWidget {
     required this.posts,
     required this.currentUserId,
     required this.onAddPost,
+    required this.onUpdatePost,
+    required this.onDeletePost,
+    required this.onClosePost,
     required this.onToggleParticipate,
   });
 
@@ -33,12 +39,12 @@ class _MainScreenState extends State<MainScreen> {
     // Filter and sort posts by createdAt desc
     final filtered = widget.posts.where((p) {
       if (_filter == null) return true;
-      if (_filter == PostFilter.open) return now.isBefore(p.deadline);
+      if (_filter == PostFilter.open) return !p.isClosedAt(now);
       if (_filter == PostFilter.joining) {
         return p.isParticipating(widget.currentUserId);
       }
       // closed
-      return !now.isBefore(p.deadline);
+      return p.isClosedAt(now);
     }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return Scaffold(
@@ -95,9 +101,9 @@ class _MainScreenState extends State<MainScreen> {
                       final isParticipating = p.isParticipating(
                         widget.currentUserId,
                       );
-                      final isClosed = !now.isBefore(p.deadline);
+                      final isClosed = p.isClosedAt(now);
                       final canJoin =
-                          !isClosed && (isParticipating || p.hasCapacity);
+                          isParticipating || (!isClosed && p.hasCapacity);
                       return Card(
                         margin: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -110,6 +116,9 @@ class _MainScreenState extends State<MainScreen> {
                                 post: p,
                                 currentUserId: widget.currentUserId,
                                 onToggleParticipate: widget.onToggleParticipate,
+                                onUpdatePost: widget.onUpdatePost,
+                                onDeletePost: widget.onDeletePost,
+                                onClosePost: widget.onClosePost,
                               ),
                             ),
                           ),
@@ -195,7 +204,10 @@ class _MainScreenState extends State<MainScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final result = await Navigator.of(context).push<Post>(
-            MaterialPageRoute(builder: (_) => const CreatePostScreen()),
+            MaterialPageRoute(
+              builder: (_) =>
+                  CreatePostScreen(currentUserId: widget.currentUserId),
+            ),
           );
           if (result != null) widget.onAddPost(result);
         },

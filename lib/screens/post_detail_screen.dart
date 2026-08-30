@@ -1,17 +1,26 @@
 import 'package:flutter/material.dart';
 
 import '../models/post.dart';
+import 'create_post_screen.dart';
+
+enum _OwnerAction { edit, close, delete }
 
 class PostDetailScreen extends StatefulWidget {
   final Post post;
   final String currentUserId;
   final void Function(String) onToggleParticipate;
+  final void Function(Post) onUpdatePost;
+  final void Function(String) onDeletePost;
+  final void Function(String) onClosePost;
 
   const PostDetailScreen({
     super.key,
     required this.post,
     required this.currentUserId,
     required this.onToggleParticipate,
+    required this.onUpdatePost,
+    required this.onDeletePost,
+    required this.onClosePost,
   });
 
   @override
@@ -19,16 +28,58 @@ class PostDetailScreen extends StatefulWidget {
 }
 
 class _PostDetailScreenState extends State<PostDetailScreen> {
+  late Post _post;
+
+  @override
+  void initState() {
+    super.initState();
+    _post = widget.post;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final post = widget.post;
-    final isClosed = !DateTime.now().isBefore(post.deadline);
+    final post = _post;
+    final isOwner = post.authorId == widget.currentUserId;
+    final isClosed = post.isClosedAt(DateTime.now());
     final isParticipating = post.isParticipating(widget.currentUserId);
     final isFull = !post.hasCapacity;
-    final canToggle = !isClosed && (isParticipating || !isFull);
+    final canToggle = isParticipating || (!isClosed && !isFull);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('募集詳細')),
+      appBar: AppBar(
+        title: const Text('募集詳細'),
+        actions: [
+          if (isOwner)
+            PopupMenuButton<_OwnerAction>(
+              tooltip: '募集を管理',
+              onSelected: _handleOwnerAction,
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: _OwnerAction.edit,
+                  child: ListTile(
+                    leading: Icon(Icons.edit_outlined),
+                    title: Text('編集'),
+                  ),
+                ),
+                if (!isClosed)
+                  const PopupMenuItem(
+                    value: _OwnerAction.close,
+                    child: ListTile(
+                      leading: Icon(Icons.stop_circle_outlined),
+                      title: Text('募集を終了'),
+                    ),
+                  ),
+                const PopupMenuItem(
+                  value: _OwnerAction.delete,
+                  child: ListTile(
+                    leading: Icon(Icons.delete_outline),
+                    title: Text('削除'),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -107,6 +158,85 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleOwnerAction(_OwnerAction action) async {
+    switch (action) {
+      case _OwnerAction.edit:
+        await _editPost();
+      case _OwnerAction.close:
+        await _closePost();
+      case _OwnerAction.delete:
+        await _deletePost();
+    }
+  }
+
+  Future<void> _editPost() async {
+    final updatedPost = await Navigator.of(context).push<Post>(
+      MaterialPageRoute(
+        builder: (_) => CreatePostScreen(
+          currentUserId: widget.currentUserId,
+          initialPost: _post,
+        ),
+      ),
+    );
+    if (updatedPost == null || !mounted) return;
+    widget.onUpdatePost(updatedPost);
+    setState(() => _post = updatedPost);
+  }
+
+  Future<void> _closePost() async {
+    final confirmed = await _showConfirmation(
+      title: '募集を終了しますか？',
+      message: '終了後は新しく参加できません。',
+      actionLabel: '終了する',
+    );
+    if (!confirmed || !mounted) return;
+    widget.onClosePost(_post.id);
+    setState(() => _post = _post.copyWith(isManuallyClosed: true));
+  }
+
+  Future<void> _deletePost() async {
+    final confirmed = await _showConfirmation(
+      title: '募集を削除しますか？',
+      message: '削除した募集は元に戻せません。',
+      actionLabel: '削除する',
+      isDestructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    widget.onDeletePost(_post.id);
+    Navigator.of(context).pop();
+  }
+
+  Future<bool> _showConfirmation({
+    required String title,
+    required String message,
+    required String actionLabel,
+    bool isDestructive = false,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('キャンセル'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: isDestructive
+                    ? TextButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.error,
+                      )
+                    : null,
+                child: Text(actionLabel),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   String _formatDateTime(DateTime dateTime) {
