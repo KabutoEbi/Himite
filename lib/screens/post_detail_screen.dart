@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../models/post.dart';
+import '../utils/date_time_format.dart';
+import '../widgets/participant_list.dart';
+import '../widgets/post_status_chip.dart';
 import 'create_post_screen.dart';
 
 enum _OwnerAction { edit, close, delete }
@@ -43,7 +46,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final isClosed = post.isClosedAt(DateTime.now());
     final isParticipating = post.isParticipating(widget.currentUserId);
     final isFull = !post.hasCapacity;
-    final canToggle = isParticipating || (!isClosed && !isFull);
+    final canToggle = post.canToggleParticipation(
+      widget.currentUserId,
+      DateTime.now(),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -92,7 +98,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
               ),
-              _StatusChip(isClosed: isClosed, isFull: isFull),
+              PostStatusChip(isClosed: isClosed, isFull: isFull),
             ],
           ),
           const SizedBox(height: 20),
@@ -100,12 +106,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           _InfoRow(
             icon: Icons.schedule,
             label: '開催日時',
-            value: _formatDateTime(post.time),
+            value: formatDateTime(post.time),
           ),
           _InfoRow(
             icon: Icons.timer_outlined,
             label: '参加締切',
-            value: _formatDateTime(post.deadline),
+            value: formatDateTime(post.deadline),
           ),
           _InfoRow(
             icon: Icons.groups_outlined,
@@ -122,19 +128,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           const Divider(height: 32),
           Text('参加者', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          if (post.participants.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text('まだ参加者はいません'),
-            )
-          else
-            ...post.participants.map(
-              (name) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const CircleAvatar(child: Icon(Icons.person)),
-                title: Text(name),
-              ),
-            ),
+          ParticipantList(participants: post.participants),
           const SizedBox(height: 24),
           FilledButton.icon(
             key: const ValueKey('detail-participate-button'),
@@ -238,13 +232,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         ) ??
         false;
   }
-
-  String _formatDateTime(DateTime dateTime) {
-    return '${dateTime.year}/${_two(dateTime.month)}/${_two(dateTime.day)} '
-        '${_two(dateTime.hour)}:${_two(dateTime.minute)}';
-  }
-
-  String _two(int number) => number.toString().padLeft(2, '0');
 }
 
 class _InfoRow extends StatelessWidget {
@@ -274,30 +261,6 @@ class _InfoRow extends StatelessWidget {
           Expanded(child: Text(value)),
         ],
       ),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  final bool isClosed;
-  final bool isFull;
-
-  const _StatusChip({required this.isClosed, required this.isFull});
-
-  @override
-  Widget build(BuildContext context) {
-    final label = isClosed
-        ? '募集終了'
-        : isFull
-        ? '満員'
-        : '募集中';
-    final color = isClosed || isFull ? Colors.grey : Colors.green;
-
-    return Chip(
-      label: Text(label),
-      side: BorderSide(color: color),
-      labelStyle: TextStyle(color: color),
-      backgroundColor: color.withValues(alpha: 0.08),
     );
   }
 }
