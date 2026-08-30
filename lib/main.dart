@@ -32,12 +32,32 @@ class _MyAppState extends State<MyApp> {
         final post = _posts[i];
         if (post.isParticipating(_currentUserId)) {
           post.removeParticipant(_currentUserId);
-        } else {
+        } else if (!post.isClosedAt(DateTime.now())) {
           post.addParticipant(
             userId: _currentUserId,
             displayName: _currentUserName,
           );
         }
+      }
+    });
+  }
+
+  void _updatePost(Post updatedPost) {
+    setState(() {
+      final index = _posts.indexWhere((post) => post.id == updatedPost.id);
+      if (index != -1) _posts[index] = updatedPost;
+    });
+  }
+
+  void _deletePost(String id) {
+    setState(() => _posts.removeWhere((post) => post.id == id));
+  }
+
+  void _closePost(String id) {
+    setState(() {
+      final index = _posts.indexWhere((post) => post.id == id);
+      if (index != -1) {
+        _posts[index] = _posts[index].copyWith(isManuallyClosed: true);
       }
     });
   }
@@ -54,6 +74,9 @@ class _MyAppState extends State<MyApp> {
         posts: _posts,
         currentUserId: _currentUserId,
         onAddPost: _addPost,
+        onUpdatePost: _updatePost,
+        onDeletePost: _deletePost,
+        onClosePost: _closePost,
         onToggleParticipate: _toggleParticipating,
       ),
     );
