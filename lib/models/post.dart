@@ -7,11 +7,13 @@ class Post {
   final String group;
   final DateTime deadline;
   final DateTime createdAt;
-  bool isParticipating;
+  final Set<String> participantIds;
+  final Map<String, String> participantNames;
 
   Post({
     required this.id,
-    this.isParticipating = false,
+    Set<String>? participantIds,
+    Map<String, String>? participantNames,
     required this.title,
     required this.place,
     required this.time,
@@ -19,7 +21,30 @@ class Post {
     required this.group,
     required this.deadline,
     required this.createdAt,
-  });
+  }) : participantIds = participantIds ?? <String>{},
+       participantNames = participantNames ?? <String, String>{};
+
+  int get participantCount => participantIds.length;
+
+  bool get hasCapacity => number <= 0 || participantCount < number;
+
+  bool isParticipating(String userId) => participantIds.contains(userId);
+
+  bool addParticipant({required String userId, required String displayName}) {
+    if (isParticipating(userId) || !hasCapacity) return false;
+    participantIds.add(userId);
+    participantNames[userId] = displayName;
+    return true;
+  }
+
+  bool removeParticipant(String userId) {
+    participantNames.remove(userId);
+    return participantIds.remove(userId);
+  }
+
+  List<String> get participants => participantIds
+      .map((id) => participantNames[id] ?? '名前未設定')
+      .toList(growable: false);
 
   factory Post.create({
     required String title,
@@ -28,12 +53,14 @@ class Post {
     required int number,
     required String group,
     required DateTime deadline,
-    bool isParticipating = false,
+    Set<String>? participantIds,
+    Map<String, String>? participantNames,
   }) {
     final now = DateTime.now();
     return Post(
       id: now.millisecondsSinceEpoch.toString(),
-      isParticipating: isParticipating,
+      participantIds: participantIds,
+      participantNames: participantNames,
       title: title,
       place: place,
       time: time,

@@ -7,12 +7,14 @@ enum PostFilter { open, joining, closed }
 
 class MainScreen extends StatefulWidget {
   final List<Post> posts;
+  final String currentUserId;
   final void Function(Post) onAddPost;
   final void Function(String) onToggleParticipate;
 
   const MainScreen({
     super.key,
     required this.posts,
+    required this.currentUserId,
     required this.onAddPost,
     required this.onToggleParticipate,
   });
@@ -31,16 +33,15 @@ class _MainScreenState extends State<MainScreen> {
     final filtered = widget.posts.where((p) {
       if (_filter == null) return true;
       if (_filter == PostFilter.open) return now.isBefore(p.deadline);
-      if (_filter == PostFilter.joining) return p.isParticipating;
+      if (_filter == PostFilter.joining) {
+        return p.isParticipating(widget.currentUserId);
+      }
       // closed
       return !now.isBefore(p.deadline);
-    }).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('募集一覧'),
-      ),
+      appBar: AppBar(title: const Text('募集一覧')),
       body: Column(
         children: [
           Padding(
@@ -53,7 +54,9 @@ class _MainScreenState extends State<MainScreen> {
                   selected: _filter == PostFilter.open,
                   showCheckmark: false,
                   onSelected: (selected) => setState(() {
-                    _filter = (_filter == PostFilter.open) ? null : PostFilter.open;
+                    _filter = (_filter == PostFilter.open)
+                        ? null
+                        : PostFilter.open;
                   }),
                 ),
                 const SizedBox(width: 8),
@@ -62,7 +65,9 @@ class _MainScreenState extends State<MainScreen> {
                   selected: _filter == PostFilter.joining,
                   showCheckmark: false,
                   onSelected: (selected) => setState(() {
-                    _filter = (_filter == PostFilter.joining) ? null : PostFilter.joining;
+                    _filter = (_filter == PostFilter.joining)
+                        ? null
+                        : PostFilter.joining;
                   }),
                 ),
                 const SizedBox(width: 8),
@@ -71,7 +76,9 @@ class _MainScreenState extends State<MainScreen> {
                   selected: _filter == PostFilter.closed,
                   showCheckmark: false,
                   onSelected: (selected) => setState(() {
-                    _filter = (_filter == PostFilter.closed) ? null : PostFilter.closed;
+                    _filter = (_filter == PostFilter.closed)
+                        ? null
+                        : PostFilter.closed;
                   }),
                 ),
               ],
@@ -84,18 +91,52 @@ class _MainScreenState extends State<MainScreen> {
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final p = filtered[index];
+                      final isParticipating = p.isParticipating(
+                        widget.currentUserId,
+                      );
+                      final isClosed = !now.isBefore(p.deadline);
+                      final canJoin =
+                          !isClosed && (isParticipating || p.hasCapacity);
                       return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
                         child: ListTile(
                           dense: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
                           title: Text(p.title),
-                          subtitle: Text([
-                            p.place,
-                            p.group,
-                            if (p.number > 0) '${p.number}人',
-                            _formatDateTime(p.time)
-                          ].join(' • ')),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                [
+                                  p.place,
+                                  p.group,
+                                  _formatDateTime(p.time),
+                                ].join(' • '),
+                              ),
+                              TextButton.icon(
+                                key: ValueKey('participants-${p.id}'),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: const Size(0, 32),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                onPressed: () => _showParticipants(p),
+                                icon: const Icon(Icons.group, size: 16),
+                                label: Text(
+                                  p.number > 0
+                                      ? '参加 ${p.participantCount}/${p.number}人'
+                                      : '参加 ${p.participantCount}人',
+                                ),
+                              ),
+                            ],
+                          ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -111,13 +152,26 @@ class _MainScreenState extends State<MainScreen> {
                               IconButton(
                                 iconSize: 20,
                                 padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                icon: Icon(
-                                  p.isParticipating ? Icons.check_circle : Icons.check_circle_outline,
-                                  color: p.isParticipating ? Colors.green : null,
+                                constraints: const BoxConstraints(
+                                  minWidth: 28,
+                                  minHeight: 28,
                                 ),
-                                onPressed: () => widget.onToggleParticipate(p.id),
-                                tooltip: p.isParticipating ? '参加を取り消す' : '参加予定にする',
+                                icon: Icon(
+                                  isParticipating
+                                      ? Icons.check_circle
+                                      : Icons.check_circle_outline,
+                                  color: isParticipating ? Colors.green : null,
+                                ),
+                                onPressed: canJoin
+                                    ? () => widget.onToggleParticipate(p.id)
+                                    : null,
+                                tooltip: isParticipating
+                                    ? '参加を取り消す'
+                                    : isClosed
+                                    ? '募集は終了しました'
+                                    : !p.hasCapacity
+                                    ? '定員に達しました'
+                                    : '参加予定にする',
                               ),
                             ],
                           ),
@@ -136,6 +190,36 @@ class _MainScreenState extends State<MainScreen> {
           if (result != null) widget.onAddPost(result);
         },
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Future<void> _showParticipants(Post post) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('参加者（${post.participantCount}人）'),
+        content: post.participants.isEmpty
+            ? const Text('まだ参加者はいません')
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: post.participants
+                    .map(
+                      (name) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const CircleAvatar(child: Icon(Icons.person)),
+                        title: Text(name),
+                      ),
+                    )
+                    .toList(),
+              ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('閉じる'),
+          ),
+        ],
       ),
     );
   }
