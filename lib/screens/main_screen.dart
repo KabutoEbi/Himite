@@ -6,6 +6,8 @@ import 'post_detail_screen.dart';
 
 enum PostFilter { open, joining, closed }
 
+enum PostSort { newest, eventDate, deadline }
+
 class MainScreen extends StatefulWidget {
   final List<Post> posts;
   final String currentUserId;
@@ -32,29 +34,45 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   PostFilter? _filter;
+  PostSort _sort = PostSort.newest;
+  String? _group;
+  DateTime? _eventDate;
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    // Filter and sort posts by createdAt desc
-    final filtered = widget.posts.where((p) {
-      if (_filter == null) return true;
-      if (_filter == PostFilter.open) return !p.isClosedAt(now);
-      if (_filter == PostFilter.joining) {
-        return p.isParticipating(widget.currentUserId);
-      }
-      // closed
-      return p.isClosedAt(now);
-    }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final filtered =
+        widget.posts.where((p) {
+          final matchesGroup = _group == null || p.group == _group;
+          final matchesDate =
+              _eventDate == null || _isSameDay(p.time, _eventDate!);
+          final matchesStatus = switch (_filter) {
+            null => true,
+            PostFilter.open => !p.isClosedAt(now),
+            PostFilter.joining => p.isParticipating(widget.currentUserId),
+            PostFilter.closed => p.isClosedAt(now),
+          };
+          return matchesGroup && matchesDate && matchesStatus;
+        }).toList()..sort(
+          (a, b) => switch (_sort) {
+            PostSort.newest => b.createdAt.compareTo(a.createdAt),
+            PostSort.eventDate => a.time.compareTo(b.time),
+            PostSort.deadline => a.deadline.compareTo(b.deadline),
+          },
+        );
+
+    final groups = widget.posts.map((post) => post.group).toSet().toList()
+      ..sort();
+    final hasDetailedFilter = _group != null || _eventDate != null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('募集一覧')),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ChoiceChip(
                   label: const Text('募集中'),
@@ -88,12 +106,65 @@ class _MainScreenState extends State<MainScreen> {
                         : PostFilter.closed;
                   }),
                 ),
+                const SizedBox(width: 8),
+                ActionChip(
+                  avatar: Icon(
+                    Icons.tune_rounded,
+                    size: 18,
+                    color: hasDetailedFilter
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                  label: Text(hasDetailedFilter ? '絞り込み中' : '絞り込み'),
+                  onPressed: () => _showFilterSheet(groups),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 8, 4),
+            child: Row(
+              children: [
+                Text(
+                  '${filtered.length}件',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const Spacer(),
+                PopupMenuButton<PostSort>(
+                  initialValue: _sort,
+                  tooltip: '並び替え',
+                  onSelected: (value) => setState(() => _sort = value),
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: PostSort.newest, child: Text('新着順')),
+                    PopupMenuItem(
+                      value: PostSort.eventDate,
+                      child: Text('開催日が近い順'),
+                    ),
+                    PopupMenuItem(
+                      value: PostSort.deadline,
+                      child: Text('締切が近い順'),
+                    ),
+                  ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.swap_vert_rounded, size: 18),
+                        const SizedBox(width: 4),
+                        Text(_sortLabel(_sort)),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
           Expanded(
             child: filtered.isEmpty
-                ? const Center(child: Text('募集ないよ'))
+                ? _EmptyResults(
+                    hasFilters: _filter != null || hasDetailedFilter,
+                    onClear: _clearFilters,
+                  )
                 : ListView.builder(
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
@@ -216,6 +287,144 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  Future<void> _showFilterSheet(List<String> groups) async {
+    var selectedGroup = _group;
+    var selectedDate = _eventDate;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD5DBD8),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  '絞り込み',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 20),
+                DropdownButtonFormField<String?>(
+                  initialValue: selectedGroup,
+                  decoration: const InputDecoration(
+                    labelText: 'グループ',
+                    prefixIcon: Icon(Icons.group_outlined),
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('すべてのグループ'),
+                    ),
+                    ...groups.map(
+                      (group) => DropdownMenuItem<String?>(
+                        value: group,
+                        child: Text(group),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setSheetState(() => selectedGroup = value),
+                ),
+                const SizedBox(height: 14),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: const BorderSide(color: Color(0xFFE1E7E4)),
+                  ),
+                  leading: const Icon(Icons.calendar_today_outlined),
+                  title: const Text('開催日'),
+                  subtitle: Text(
+                    selectedDate == null
+                        ? 'すべての日付'
+                        : '${selectedDate!.year}/${_two(selectedDate!.month)}/${_two(selectedDate!.day)}',
+                  ),
+                  trailing: selectedDate == null
+                      ? const Icon(Icons.chevron_right_rounded)
+                      : IconButton(
+                          tooltip: '開催日をクリア',
+                          onPressed: () =>
+                              setSheetState(() => selectedDate = null),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now().add(const Duration(days: 3650)),
+                    );
+                    if (picked != null) {
+                      setSheetState(() => selectedDate = picked);
+                    }
+                  },
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => setSheetState(() {
+                          selectedGroup = null;
+                          selectedDate = null;
+                        }),
+                        child: const Text('リセット'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton(
+                        onPressed: () {
+                          setState(() {
+                            _group = selectedGroup;
+                            _eventDate = selectedDate;
+                          });
+                          Navigator.of(sheetContext).pop();
+                        },
+                        child: const Text('適用する'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _filter = null;
+      _group = null;
+      _eventDate = null;
+    });
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  String _sortLabel(PostSort sort) => switch (sort) {
+    PostSort.newest => '新着順',
+    PostSort.eventDate => '開催日が近い順',
+    PostSort.deadline => '締切が近い順',
+  };
+
   Future<void> _showParticipants(Post post) {
     return showDialog<void>(
       context: context,
@@ -251,4 +460,36 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   String _two(int n) => n.toString().padLeft(2, '0');
+}
+
+class _EmptyResults extends StatelessWidget {
+  final bool hasFilters;
+  final VoidCallback onClear;
+
+  const _EmptyResults({required this.hasFilters, required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              hasFilters ? Icons.search_off_rounded : Icons.event_note_rounded,
+              size: 48,
+              color: const Color(0xFF8B9691),
+            ),
+            const SizedBox(height: 12),
+            Text(hasFilters ? '条件に合う募集がありません' : '募集はまだありません'),
+            if (hasFilters) ...[
+              const SizedBox(height: 8),
+              TextButton(onPressed: onClear, child: const Text('条件をクリア')),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }
