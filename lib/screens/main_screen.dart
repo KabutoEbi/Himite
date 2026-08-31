@@ -182,9 +182,10 @@ class _MainScreenState extends State<MainScreen> {
                       return Card(
                         margin: const EdgeInsets.symmetric(
                           horizontal: 12,
-                          vertical: 4,
+                          vertical: 6,
                         ),
-                        child: ListTile(
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
                           onTap: () => Navigator.of(context).push<void>(
                             MaterialPageRoute(
                               builder: (_) => PostDetailScreen(
@@ -197,79 +198,111 @@ class _MainScreenState extends State<MainScreen> {
                               ),
                             ),
                           ),
-                          dense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          title: Text(post.title),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                [
-                                  post.place,
-                                  post.group,
-                                  formatDateTime(post.time),
-                                ].join(' • '),
-                              ),
-                              TextButton.icon(
-                                key: ValueKey('participants-${post.id}'),
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  minimumSize: const Size(0, 32),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        post.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      post.group,
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                onPressed: () => _showParticipants(post),
-                                icon: const Icon(Icons.group, size: 16),
-                                label: Text(
-                                  post.number > 0
-                                      ? '参加 ${post.participantCount}/${post.number}人'
-                                      : '参加 ${post.participantCount}人',
+                                const SizedBox(height: 10),
+                                _PostMetaRow(
+                                  icon: Icons.location_on_outlined,
+                                  text: post.place,
                                 ),
-                              ),
-                              _CapacityIndicator(post: post),
-                              const SizedBox(height: 6),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  '締切 ${formatDateTime(post.deadline)}',
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                  style: Theme.of(context).textTheme.bodySmall,
+                                const SizedBox(height: 5),
+                                _PostMetaRow(
+                                  icon: Icons.calendar_today_outlined,
+                                  text: formatDateTime(post.time),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                iconSize: 20,
-                                padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(
-                                  minWidth: 28,
-                                  minHeight: 28,
+                                const SizedBox(height: 12),
+                                const Divider(height: 1),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    TextButton.icon(
+                                      key: ValueKey('participants-${post.id}'),
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        minimumSize: const Size(0, 32),
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      onPressed: () => _showParticipants(post),
+                                      icon: const Icon(
+                                        Icons.group_outlined,
+                                        size: 17,
+                                      ),
+                                      label: Text(
+                                        post.number > 0
+                                            ? '${post.participantCount}/${post.number}人'
+                                            : '${post.participantCount}人',
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    _CapacityIndicator(post: post),
+                                    const Spacer(),
+                                    Text(
+                                      '締切 ${formatDateTime(post.deadline)}',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    IconButton(
+                                      iconSize: 21,
+                                      visualDensity: VisualDensity.compact,
+                                      icon: Icon(
+                                        isParticipating
+                                            ? Icons.check_circle
+                                            : Icons.check_circle_outline,
+                                        color: isParticipating
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.primary
+                                            : null,
+                                      ),
+                                      onPressed: canJoin
+                                          ? () => widget.onToggleParticipate(
+                                              post.id,
+                                            )
+                                          : null,
+                                      tooltip: isParticipating
+                                          ? '参加を取り消す'
+                                          : isClosed
+                                          ? '募集は終了しました'
+                                          : !post.hasCapacity
+                                          ? '定員に達しました'
+                                          : '参加予定にする',
+                                    ),
+                                  ],
                                 ),
-                                icon: Icon(
-                                  isParticipating
-                                      ? Icons.check_circle
-                                      : Icons.check_circle_outline,
-                                  color: isParticipating ? Colors.green : null,
-                                ),
-                                onPressed: canJoin
-                                    ? () => widget.onToggleParticipate(post.id)
-                                    : null,
-                                tooltip: isParticipating
-                                    ? '参加を取り消す'
-                                    : isClosed
-                                    ? '募集は終了しました'
-                                    : !post.hasCapacity
-                                    ? '定員に達しました'
-                                    : '参加予定にする',
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       );
@@ -475,32 +508,38 @@ class _CapacityIndicator extends StatelessWidget {
       post.number,
     );
     final isFull = remaining == 0;
-    final color = isFull
-        ? const Color(0xFF8B9691)
-        : Theme.of(context).colorScheme.primary;
+    return Text(
+      isFull ? '満員' : '残り$remaining人',
+      key: ValueKey('remaining-capacity-${post.id}'),
+      style: TextStyle(
+        color: isFull
+            ? const Color(0xFF8B9691)
+            : Theme.of(context).colorScheme.primary,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+}
 
+class _PostMetaRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _PostMetaRow({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
       children: [
+        Icon(icon, size: 15, color: const Color(0xFF66736D)),
+        const SizedBox(width: 6),
         Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              key: ValueKey('capacity-progress-${post.id}'),
-              value: (post.participantCount / post.number).clamp(0, 1),
-              minHeight: 6,
-              color: color,
-              backgroundColor: const Color(0xFFE1E7E4),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          isFull ? '満員' : '残り$remaining人',
-          key: ValueKey('remaining-capacity-${post.id}'),
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF66736D)),
           ),
         ),
       ],
