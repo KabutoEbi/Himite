@@ -53,6 +53,46 @@ void main() {
     expect(find.text('あなた'), findsOneWidget);
   });
 
+  testWidgets('sorts posts by event date', (tester) async {
+    final now = DateTime.now();
+    final later = _post(capacity: 3);
+    final sooner = Post(
+      id: 'post-2',
+      authorId: 'user-2',
+      title: '朝ごはん',
+      place: 'カフェ',
+      time: now.add(const Duration(hours: 1)),
+      number: 2,
+      group: '全体',
+      deadline: now.add(const Duration(minutes: 30)),
+      createdAt: now.subtract(const Duration(days: 1)),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MainScreen(
+          posts: [later, sooner],
+          currentUserId: 'user-1',
+          onAddPost: (_) {},
+          onUpdatePost: (_) {},
+          onDeletePost: (_) {},
+          onClosePost: (_) {},
+          onToggleParticipate: (_) {},
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('新着順'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('開催日が近い順').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getTopLeft(find.text('朝ごはん')).dy,
+      lessThan(tester.getTopLeft(find.text('昼ごはん')).dy),
+    );
+  });
+
   testWidgets('opens details and allows participation', (tester) async {
     final post = _post(capacity: 3);
 
