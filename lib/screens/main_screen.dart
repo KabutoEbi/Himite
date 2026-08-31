@@ -68,7 +68,22 @@ class _MainScreenState extends State<MainScreen> {
     final hasDetailedFilter = _group != null || _eventDate != null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('募集一覧')),
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: '募集を作成',
+          onPressed: _openCreatePost,
+          icon: const Icon(Icons.add_rounded),
+        ),
+        title: const Text('Himite'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: '通知',
+            onPressed: () {},
+            icon: const Icon(Icons.notifications_none_rounded),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           SingleChildScrollView(
@@ -109,16 +124,20 @@ class _MainScreenState extends State<MainScreen> {
                   }),
                 ),
                 const SizedBox(width: 8),
-                ActionChip(
-                  avatar: Icon(
+                IconButton(
+                  tooltip: '絞り込み',
+                  style: IconButton.styleFrom(
+                    backgroundColor: hasDetailedFilter
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : const Color(0xFFF0F3F1),
+                  ),
+                  onPressed: () => _showFilterSheet(groups),
+                  icon: Icon(
                     Icons.tune_rounded,
-                    size: 18,
                     color: hasDetailedFilter
                         ? Theme.of(context).colorScheme.primary
-                        : null,
+                        : const Color(0xFF66736D),
                   ),
-                  label: Text(hasDetailedFilter ? '絞り込み中' : '絞り込み'),
-                  onPressed: () => _showFilterSheet(groups),
                 ),
               ],
             ),
@@ -311,19 +330,16 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.of(context).push<Post>(
-            MaterialPageRoute(
-              builder: (_) =>
-                  CreatePostScreen(currentUserId: widget.currentUserId),
-            ),
-          );
-          if (result != null) widget.onAddPost(result);
-        },
-        child: const Icon(Icons.add),
+    );
+  }
+
+  Future<void> _openCreatePost() async {
+    final result = await Navigator.of(context).push<Post>(
+      MaterialPageRoute(
+        builder: (_) => CreatePostScreen(currentUserId: widget.currentUserId),
       ),
     );
+    if (result != null) widget.onAddPost(result);
   }
 
   Future<void> _showFilterSheet(List<String> groups) async {

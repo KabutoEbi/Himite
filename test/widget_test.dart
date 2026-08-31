@@ -262,7 +262,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(deleted, isTrue);
-    expect(find.text('募集一覧'), findsOneWidget);
+    expect(find.text('Himite'), findsOneWidget);
   });
 }
 
