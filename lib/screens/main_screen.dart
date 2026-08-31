@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/post.dart';
+import '../utils/date_time_format.dart';
+import '../widgets/participant_list.dart';
 import 'create_post_screen.dart';
 import 'post_detail_screen.dart';
 
@@ -168,13 +170,15 @@ class _MainScreenState extends State<MainScreen> {
                 : ListView.builder(
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
-                      final p = filtered[index];
-                      final isParticipating = p.isParticipating(
+                      final post = filtered[index];
+                      final isParticipating = post.isParticipating(
                         widget.currentUserId,
                       );
-                      final isClosed = p.isClosedAt(now);
-                      final canJoin =
-                          isParticipating || (!isClosed && p.hasCapacity);
+                      final isClosed = post.isClosedAt(now);
+                      final canJoin = post.canToggleParticipation(
+                        widget.currentUserId,
+                        now,
+                      );
                       return Card(
                         margin: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -184,7 +188,7 @@ class _MainScreenState extends State<MainScreen> {
                           onTap: () => Navigator.of(context).push<void>(
                             MaterialPageRoute(
                               builder: (_) => PostDetailScreen(
-                                post: p,
+                                post: post,
                                 currentUserId: widget.currentUserId,
                                 onToggleParticipate: widget.onToggleParticipate,
                                 onUpdatePost: widget.onUpdatePost,
@@ -198,31 +202,31 @@ class _MainScreenState extends State<MainScreen> {
                             horizontal: 12,
                             vertical: 4,
                           ),
-                          title: Text(p.title),
+                          title: Text(post.title),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 [
-                                  p.place,
-                                  p.group,
-                                  _formatDateTime(p.time),
+                                  post.place,
+                                  post.group,
+                                  formatDateTime(post.time),
                                 ].join(' • '),
                               ),
                               TextButton.icon(
-                                key: ValueKey('participants-${p.id}'),
+                                key: ValueKey('participants-${post.id}'),
                                 style: TextButton.styleFrom(
                                   padding: EdgeInsets.zero,
                                   minimumSize: const Size(0, 32),
                                   tapTargetSize:
                                       MaterialTapTargetSize.shrinkWrap,
                                 ),
-                                onPressed: () => _showParticipants(p),
+                                onPressed: () => _showParticipants(post),
                                 icon: const Icon(Icons.group, size: 16),
                                 label: Text(
-                                  p.number > 0
-                                      ? '参加 ${p.participantCount}/${p.number}人'
-                                      : '参加 ${p.participantCount}人',
+                                  post.number > 0
+                                      ? '参加 ${post.participantCount}/${post.number}人'
+                                      : '参加 ${post.participantCount}人',
                                 ),
                               ),
                             ],
@@ -232,7 +236,7 @@ class _MainScreenState extends State<MainScreen> {
                             children: [
                               Flexible(
                                 child: Text(
-                                  '締切 ${_formatDateTime(p.deadline)}',
+                                  '締切 ${formatDateTime(post.deadline)}',
                                   overflow: TextOverflow.ellipsis,
                                   maxLines: 1,
                                   style: Theme.of(context).textTheme.bodySmall,
@@ -253,13 +257,13 @@ class _MainScreenState extends State<MainScreen> {
                                   color: isParticipating ? Colors.green : null,
                                 ),
                                 onPressed: canJoin
-                                    ? () => widget.onToggleParticipate(p.id)
+                                    ? () => widget.onToggleParticipate(post.id)
                                     : null,
                                 tooltip: isParticipating
                                     ? '参加を取り消す'
                                     : isClosed
                                     ? '募集は終了しました'
-                                    : !p.hasCapacity
+                                    : !post.hasCapacity
                                     ? '定員に達しました'
                                     : '参加予定にする',
                               ),
@@ -350,7 +354,7 @@ class _MainScreenState extends State<MainScreen> {
                   subtitle: Text(
                     selectedDate == null
                         ? 'すべての日付'
-                        : '${selectedDate!.year}/${_two(selectedDate!.month)}/${_two(selectedDate!.day)}',
+                        : formatDateTime(selectedDate!).split(' ').first,
                   ),
                   trailing: selectedDate == null
                       ? const Icon(Icons.chevron_right_rounded)
@@ -429,22 +433,9 @@ class _MainScreenState extends State<MainScreen> {
     return showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: Text('参加者（${post.participantCount}人）'),
-        content: post.participants.isEmpty
-            ? const Text('まだ参加者はいません')
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: post.participants
-                    .map(
-                      (name) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const CircleAvatar(child: Icon(Icons.person)),
-                        title: Text(name),
-                      ),
-                    )
-                    .toList(),
-              ),
+        content: ParticipantList(participants: post.participants),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -454,12 +445,6 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
-
-  String _formatDateTime(DateTime dt) {
-    return '${dt.year}/${_two(dt.month)}/${_two(dt.day)} ${_two(dt.hour)}:${_two(dt.minute)}';
-  }
-
-  String _two(int n) => n.toString().padLeft(2, '0');
 }
 
 class _EmptyResults extends StatelessWidget {

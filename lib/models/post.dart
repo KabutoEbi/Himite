@@ -37,6 +37,10 @@ class Post {
 
   bool isParticipating(String userId) => participantIds.contains(userId);
 
+  bool canToggleParticipation(String userId, DateTime dateTime) {
+    return isParticipating(userId) || (!isClosedAt(dateTime) && hasCapacity);
+  }
+
   bool addParticipant({required String userId, required String displayName}) {
     if (isParticipating(userId) || !hasCapacity) return false;
     participantIds.add(userId);
@@ -102,6 +106,45 @@ class Post {
       isManuallyClosed: isManuallyClosed ?? this.isManuallyClosed,
       participantIds: Set<String>.of(participantIds),
       participantNames: Map<String, String>.of(participantNames),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'authorId': authorId,
+      'title': title,
+      'place': place,
+      'time': time.toIso8601String(),
+      'number': number,
+      'group': group,
+      'deadline': deadline.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(),
+      'isManuallyClosed': isManuallyClosed,
+      'participantIds': participantIds.toList(),
+      'participantNames': participantNames,
+    };
+  }
+
+  factory Post.fromJson(Map<String, dynamic> json) {
+    final rawNames = json['participantNames'] as Map? ?? const {};
+    return Post(
+      id: json['id'] as String,
+      authorId: json['authorId'] as String,
+      title: json['title'] as String,
+      place: json['place'] as String,
+      time: DateTime.parse(json['time'] as String),
+      number: json['number'] as int,
+      group: json['group'] as String,
+      deadline: DateTime.parse(json['deadline'] as String),
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      isManuallyClosed: json['isManuallyClosed'] as bool? ?? false,
+      participantIds: (json['participantIds'] as List? ?? const [])
+          .map((id) => id as String)
+          .toSet(),
+      participantNames: rawNames.map(
+        (id, name) => MapEntry(id as String, name as String),
+      ),
     );
   }
 }
