@@ -225,6 +225,29 @@ void main() {
     expect(find.textContaining('昼ごはん'), findsOneWidget);
   });
 
+  testWidgets('opens settings from the app bar', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MainScreen(
+          posts: const [],
+          currentUserId: 'user-1',
+          onAddPost: (_) {},
+          onUpdatePost: (_) {},
+          onDeletePost: (_) {},
+          onClosePost: (_) {},
+          onToggleParticipate: (_) {},
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('設定'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('設定'), findsOneWidget);
+    expect(find.text('募集のお知らせ'), findsOneWidget);
+    expect(find.text('アプリについて'), findsOneWidget);
+  });
+
   testWidgets('opens details and allows participation', (tester) async {
     final post = _post(capacity: 3);
 
