@@ -198,8 +198,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       isDestructive: true,
     );
     if (!confirmed || !mounted) return;
+    final navigator = Navigator.of(context);
     widget.onDeletePost(_post.id);
-    Navigator.of(context).pop();
+    navigator.popUntil((route) => route.isFirst);
   }
 
   Future<bool> _showConfirmation({
