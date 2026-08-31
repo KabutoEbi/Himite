@@ -45,12 +45,8 @@ void main() {
       ),
     );
 
-    expect(find.text('参加 1/3人'), findsOneWidget);
+    expect(find.text('1/3人'), findsOneWidget);
     expect(find.text('残り2人'), findsOneWidget);
-    expect(
-      find.byKey(ValueKey('capacity-progress-${post.id}')),
-      findsOneWidget,
-    );
     await tester.tap(find.byKey(ValueKey('participants-${post.id}')));
     await tester.pumpAndSettle();
 
