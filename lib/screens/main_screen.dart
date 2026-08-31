@@ -4,10 +4,11 @@ import '../models/post.dart';
 import '../utils/date_time_format.dart';
 import '../utils/app_messenger.dart';
 import '../widgets/participant_list.dart';
+import 'archive_screen.dart';
 import 'create_post_screen.dart';
 import 'post_detail_screen.dart';
 
-enum PostFilter { open, joining, closed }
+enum PostFilter { joining }
 
 enum PostSort { newest, eventDate, deadline }
 
@@ -50,10 +51,9 @@ class _MainScreenState extends State<MainScreen> {
           final matchesDate =
               _eventDate == null || _isSameDay(p.time, _eventDate!);
           final matchesStatus = switch (_filter) {
-            null => true,
-            PostFilter.open => !p.isClosedAt(now),
-            PostFilter.joining => p.isParticipating(widget.currentUserId),
-            PostFilter.closed => p.isClosedAt(now),
+            null => !p.isClosedAt(now),
+            PostFilter.joining =>
+              !p.isClosedAt(now) && p.isParticipating(widget.currentUserId),
           };
           return matchesGroup && matchesDate && matchesStatus;
         }).toList()..sort(
@@ -66,7 +66,8 @@ class _MainScreenState extends State<MainScreen> {
 
     final groups = widget.posts.map((post) => post.group).toSet().toList()
       ..sort();
-    final hasDetailedFilter = _group != null || _eventDate != null;
+    final hasDetailedFilter =
+        _filter == PostFilter.joining || _group != null || _eventDate != null;
 
     return Scaffold(
       appBar: AppBar(
@@ -79,6 +80,11 @@ class _MainScreenState extends State<MainScreen> {
         centerTitle: true,
         actions: [
           IconButton(
+            tooltip: 'アーカイブ',
+            onPressed: _openArchive,
+            icon: const Icon(Icons.inventory_2_outlined),
+          ),
+          IconButton(
             tooltip: '通知',
             onPressed: () {},
             icon: const Icon(Icons.notifications_none_rounded),
@@ -87,44 +93,15 @@ class _MainScreenState extends State<MainScreen> {
       ),
       body: Column(
         children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 8, 4),
             child: Row(
               children: [
-                ChoiceChip(
-                  label: const Text('募集中'),
-                  selected: _filter == PostFilter.open,
-                  showCheckmark: false,
-                  onSelected: (selected) => setState(() {
-                    _filter = (_filter == PostFilter.open)
-                        ? null
-                        : PostFilter.open;
-                  }),
+                Text(
+                  '${filtered.length}件',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  label: const Text('参加予定'),
-                  selected: _filter == PostFilter.joining,
-                  showCheckmark: false,
-                  onSelected: (selected) => setState(() {
-                    _filter = (_filter == PostFilter.joining)
-                        ? null
-                        : PostFilter.joining;
-                  }),
-                ),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  label: const Text('募集終了'),
-                  selected: _filter == PostFilter.closed,
-                  showCheckmark: false,
-                  onSelected: (selected) => setState(() {
-                    _filter = (_filter == PostFilter.closed)
-                        ? null
-                        : PostFilter.closed;
-                  }),
-                ),
-                const SizedBox(width: 8),
+                const Spacer(),
                 IconButton(
                   tooltip: '絞り込み',
                   style: IconButton.styleFrom(
@@ -140,18 +117,7 @@ class _MainScreenState extends State<MainScreen> {
                         : const Color(0xFF66736D),
                   ),
                 ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 8, 4),
-            child: Row(
-              children: [
-                Text(
-                  '${filtered.length}件',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const Spacer(),
+                const SizedBox(width: 4),
                 PopupMenuButton<PostSort>(
                   initialValue: _sort,
                   tooltip: '並び替え',
@@ -343,6 +309,21 @@ class _MainScreenState extends State<MainScreen> {
     _showSnackBar('募集を作成しました');
   }
 
+  Future<void> _openArchive() {
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ArchiveScreen(
+          posts: widget.posts,
+          currentUserId: widget.currentUserId,
+          onUpdatePost: _updatePost,
+          onDeletePost: _deletePost,
+          onClosePost: _closePost,
+          onToggleParticipate: _toggleParticipation,
+        ),
+      ),
+    );
+  }
+
   void _toggleParticipation(String id) {
     final post = _postById(id);
     if (post == null) return;
@@ -381,6 +362,7 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _showFilterSheet(List<String> groups) async {
     var selectedGroup = _group;
     var selectedDate = _eventDate;
+    var joiningOnly = _filter == PostFilter.joining;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -408,6 +390,15 @@ class _MainScreenState extends State<MainScreen> {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 20),
+                SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  title: const Text('参加予定のみ'),
+                  secondary: const Icon(Icons.check_circle_outline_rounded),
+                  value: joiningOnly,
+                  onChanged: (value) =>
+                      setSheetState(() => joiningOnly = value),
+                ),
+                const SizedBox(height: 8),
                 DropdownButtonFormField<String?>(
                   initialValue: selectedGroup,
                   decoration: const InputDecoration(
@@ -469,6 +460,7 @@ class _MainScreenState extends State<MainScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => setSheetState(() {
+                          joiningOnly = false;
                           selectedGroup = null;
                           selectedDate = null;
                         }),
@@ -481,6 +473,7 @@ class _MainScreenState extends State<MainScreen> {
                       child: FilledButton(
                         onPressed: () {
                           setState(() {
+                            _filter = joiningOnly ? PostFilter.joining : null;
                             _group = selectedGroup;
                             _eventDate = selectedDate;
                           });

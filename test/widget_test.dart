@@ -54,6 +54,56 @@ void main() {
     expect(find.text('あなた'), findsOneWidget);
   });
 
+  testWidgets('filters participating posts from the filter sheet', (
+    tester,
+  ) async {
+    final participatingPost = _post(capacity: 3)
+      ..addParticipant(userId: 'user-1', displayName: 'あなた');
+    final otherPost = Post(
+      id: 'post-2',
+      authorId: 'user-2',
+      title: '晩ごはん',
+      place: '食堂',
+      time: DateTime.now().add(const Duration(hours: 3)),
+      number: 3,
+      group: '全体',
+      deadline: DateTime.now().add(const Duration(hours: 2)),
+      createdAt: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MainScreen(
+          posts: [participatingPost, otherPost],
+          currentUserId: 'user-1',
+          onAddPost: (_) {},
+          onUpdatePost: (_) {},
+          onDeletePost: (_) {},
+          onClosePost: (_) {},
+          onToggleParticipate: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.text('昼ごはん'), findsOneWidget);
+    expect(find.text('晩ごはん'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('絞り込み'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('参加予定のみ'));
+    await tester.tap(find.text('適用する'));
+    await tester.pumpAndSettle();
+    expect(find.text('昼ごはん'), findsOneWidget);
+    expect(find.text('晩ごはん'), findsNothing);
+
+    await tester.tap(find.byTooltip('絞り込み'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('リセット'));
+    await tester.tap(find.text('適用する'));
+    await tester.pumpAndSettle();
+    expect(find.text('晩ごはん'), findsOneWidget);
+  });
+
   testWidgets('sorts posts by event date', (tester) async {
     final now = DateTime.now();
     final later = _post(capacity: 3);
@@ -92,6 +142,31 @@ void main() {
       tester.getTopLeft(find.text('朝ごはん')).dy,
       lessThan(tester.getTopLeft(find.text('昼ごはん')).dy),
     );
+  });
+
+  testWidgets('moves closed posts to the archive', (tester) async {
+    final closedPost = _post(capacity: 3).copyWith(isManuallyClosed: true);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MainScreen(
+          posts: [closedPost],
+          currentUserId: 'user-1',
+          onAddPost: (_) {},
+          onUpdatePost: (_) {},
+          onDeletePost: (_) {},
+          onClosePost: (_) {},
+          onToggleParticipate: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.text('昼ごはん'), findsNothing);
+    await tester.tap(find.byTooltip('アーカイブ'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('アーカイブ'), findsOneWidget);
+    expect(find.text('昼ごはん'), findsOneWidget);
   });
 
   testWidgets('opens details and allows participation', (tester) async {
