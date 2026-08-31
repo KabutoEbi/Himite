@@ -6,6 +6,7 @@ import '../utils/app_messenger.dart';
 import '../widgets/participant_list.dart';
 import 'archive_screen.dart';
 import 'create_post_screen.dart';
+import 'notification_screen.dart';
 import 'post_detail_screen.dart';
 
 enum PostFilter { joining }
@@ -68,6 +69,10 @@ class _MainScreenState extends State<MainScreen> {
       ..sort();
     final hasDetailedFilter =
         _filter == PostFilter.joining || _group != null || _eventDate != null;
+    final notificationCount = notificationCountFor(
+      widget.posts,
+      widget.currentUserId,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -86,8 +91,12 @@ class _MainScreenState extends State<MainScreen> {
           ),
           IconButton(
             tooltip: '通知',
-            onPressed: () {},
-            icon: const Icon(Icons.notifications_none_rounded),
+            onPressed: _openNotifications,
+            icon: Badge.count(
+              count: notificationCount,
+              isLabelVisible: notificationCount > 0,
+              child: const Icon(Icons.notifications_none_rounded),
+            ),
           ),
         ],
       ),
@@ -313,6 +322,21 @@ class _MainScreenState extends State<MainScreen> {
     return Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => ArchiveScreen(
+          posts: widget.posts,
+          currentUserId: widget.currentUserId,
+          onUpdatePost: _updatePost,
+          onDeletePost: _deletePost,
+          onClosePost: _closePost,
+          onToggleParticipate: _toggleParticipation,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openNotifications() {
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => NotificationScreen(
           posts: widget.posts,
           currentUserId: widget.currentUserId,
           onUpdatePost: _updatePost,
