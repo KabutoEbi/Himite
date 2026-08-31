@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:himite/models/post.dart';
+import 'package:himite/screens/create_post_screen.dart';
 import 'package:himite/screens/main_screen.dart';
 
 void main() {
@@ -52,6 +53,35 @@ void main() {
 
     expect(find.text('参加者（1人）'), findsOneWidget);
     expect(find.text('あなた'), findsOneWidget);
+  });
+
+  testWidgets('rejects a post scheduled before the current time', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    final pastPost = Post(
+      id: 'past-post',
+      authorId: 'user-1',
+      title: '過去の募集',
+      place: '食堂',
+      time: now.subtract(const Duration(hours: 1)),
+      number: 3,
+      group: '全体',
+      deadline: now.subtract(const Duration(hours: 2)),
+      createdAt: now.subtract(const Duration(days: 1)),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CreatePostScreen(currentUserId: 'user-1', initialPost: pastPost),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('save-post-button')));
+    await tester.pump();
+
+    expect(find.text('開催日時は現在より後にしてください'), findsOneWidget);
+    expect(find.text('締切日時は現在より後にしてください'), findsOneWidget);
   });
 
   testWidgets('filters participating posts from the filter sheet', (

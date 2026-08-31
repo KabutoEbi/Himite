@@ -1,7 +1,7 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../models/post.dart';
-import '../utils/date_time_format.dart';
 
 class CreatePostScreen extends StatefulWidget {
   final String currentUserId;
@@ -54,21 +54,106 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     super.dispose();
   }
 
-  Future<DateTime?> _pickDateTime(DateTime? initial) async {
+  DateTime _defaultDateTime() {
     final now = DateTime.now();
-    final date = await showDatePicker(
+    return DateTime(now.year, now.month, now.day, now.hour + 1);
+  }
+
+  Future<DateTime?> _pickDate(DateTime? initial) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final initialValue = initial ?? _defaultDateTime();
+    final selected = initialValue.isBefore(today)
+        ? _defaultDateTime()
+        : initialValue;
+    return showModalBottomSheet<DateTime>(
       context: context,
-      initialDate: initial ?? now,
-      firstDate: now.subtract(const Duration(days: 365)),
-      lastDate: now.add(const Duration(days: 365 * 5)),
+      builder: (sheetContext) => SafeArea(
+        child: SizedBox(
+          height: 420,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 8, 0),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        '日付を選択',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: '閉じる',
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: CalendarDatePicker(
+                  initialDate: selected,
+                  firstDate: today,
+                  lastDate: now.add(const Duration(days: 365 * 5)),
+                  onDateChanged: (date) => Navigator.of(sheetContext).pop(date),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
-    if (date == null || !mounted) return null;
-    final time = await showTimePicker(
+  }
+
+  Future<DateTime?> _pickTime(DateTime? initial) async {
+    var selected = initial ?? _defaultDateTime();
+    return showCupertinoModalPopup<DateTime>(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(initial ?? now),
+      builder: (sheetContext) => Container(
+        height: 330,
+        color: CupertinoColors.systemBackground.resolveFrom(context),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 50,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CupertinoButton(
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      child: const Text('キャンセル'),
+                    ),
+                    CupertinoButton(
+                      onPressed: () => Navigator.of(sheetContext).pop(selected),
+                      child: const Text(
+                        '完了',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.time,
+                  initialDateTime: selected,
+                  use24hFormat: true,
+                  minuteInterval: 5,
+                  onDateTimeChanged: (value) => selected = value,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
-    if (time == null) return null;
-    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 
   void _submit() {
@@ -81,6 +166,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       setState(() {
         if (_selectedTime == null) _timeError = '開催日時を選択してください';
         if (_selectedDeadline == null) _deadlineError = '締切日時を選択してください';
+      });
+      return;
+    }
+    final now = DateTime.now();
+    if (!_selectedTime!.isAfter(now) || !_selectedDeadline!.isAfter(now)) {
+      setState(() {
+        if (!_selectedTime!.isAfter(now)) {
+          _timeError = '開催日時は現在より後にしてください';
+        }
+        if (!_selectedDeadline!.isAfter(now)) {
+          _deadlineError = '締切日時は現在より後にしてください';
+        }
       });
       return;
     }
@@ -129,99 +226,80 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: EdgeInsets.fromLTRB(16, 24, 16, bottomInset + 28),
+            padding: EdgeInsets.fromLTRB(16, 20, 16, bottomInset + 28),
             children: [
-              const Text(
-                '募集内容',
-                style: TextStyle(
-                  color: Color(0xFF17211D),
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  labelText: 'タイトル',
+                  hintText: '例：週末フットサル',
+                ),
+                validator: _requiredValidator,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _placeController,
+                decoration: const InputDecoration(
+                  labelText: '場所',
+                  hintText: '開催場所を入力',
+                ),
+                validator: _requiredValidator,
+              ),
+              const SizedBox(height: 24),
+              const _SectionLabel('日時'),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE1E7E4)),
+                ),
+                child: Column(
+                  children: [
+                    _DateTimeField(
+                      label: '開催',
+                      value: _selectedTime,
+                      errorText: _timeError,
+                      onDatePressed: () => _selectDate(isDeadline: false),
+                      onTimePressed: () => _selectTime(isDeadline: false),
+                    ),
+                    const Divider(height: 1, indent: 16),
+                    _DateTimeField(
+                      label: '締切',
+                      value: _selectedDeadline,
+                      errorText: _deadlineError,
+                      onDatePressed: () => _selectDate(isDeadline: true),
+                      onTimePressed: () => _selectTime(isDeadline: true),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 6),
-              const Text(
-                '予定を入力して、仲間を集めましょう。',
-                style: TextStyle(color: Color(0xFF66736D), fontSize: 14),
+              const SizedBox(height: 24),
+              const _SectionLabel('公開設定'),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedGroup,
+                decoration: const InputDecoration(labelText: 'グループ'),
+                items: _availableGroups
+                    .map(
+                      (group) =>
+                          DropdownMenuItem(value: group, child: Text(group)),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setState(() => _selectedGroup = value);
+                },
               ),
-              const SizedBox(height: 22),
-              _FormCard(
-                children: [
-                  const _FieldLabel('基本情報'),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'タイトル',
-                      hintText: '例：週末フットサル',
-                      prefixIcon: Icon(Icons.edit_outlined),
-                    ),
-                    validator: _requiredValidator,
-                  ),
-                  const SizedBox(height: 14),
-                  TextFormField(
-                    controller: _placeController,
-                    decoration: const InputDecoration(
-                      labelText: '場所',
-                      hintText: '開催場所を入力',
-                      prefixIcon: Icon(Icons.location_on_outlined),
-                    ),
-                    validator: _requiredValidator,
-                  ),
-                  const SizedBox(height: 14),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedGroup,
-                    decoration: const InputDecoration(
-                      labelText: '公開グループ',
-                      prefixIcon: Icon(Icons.group_outlined),
-                    ),
-                    items: _availableGroups
-                        .map(
-                          (group) => DropdownMenuItem(
-                            value: group,
-                            child: Text(group),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) setState(() => _selectedGroup = value);
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                  TextFormField(
-                    controller: _numberController,
-                    decoration: const InputDecoration(
-                      labelText: '募集人数（任意）',
-                      hintText: '例：5',
-                      prefixIcon: Icon(Icons.people_outline),
-                      suffixText: '人',
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: _capacityValidator,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _FormCard(
-                children: [
-                  const _FieldLabel('日時設定'),
-                  const SizedBox(height: 10),
-                  _DateTimeField(
-                    label: '開催日時',
-                    icon: Icons.calendar_today_outlined,
-                    value: _selectedTime,
-                    errorText: _timeError,
-                    onPressed: () => _selectDateTime(isDeadline: false),
-                  ),
-                  _DateTimeField(
-                    label: '締切日時',
-                    icon: Icons.schedule_outlined,
-                    value: _selectedDeadline,
-                    errorText: _deadlineError,
-                    onPressed: () => _selectDateTime(isDeadline: true),
-                  ),
-                ],
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _numberController,
+                decoration: const InputDecoration(
+                  labelText: '募集人数（任意）',
+                  hintText: '例：5',
+                  suffixText: '人',
+                ),
+                keyboardType: TextInputType.number,
+                validator: _capacityValidator,
               ),
             ],
           ),
@@ -269,10 +347,29 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     return null;
   }
 
-  Future<void> _selectDateTime({required bool isDeadline}) async {
+  Future<void> _selectDate({required bool isDeadline}) async {
     final currentValue = isDeadline ? _selectedDeadline : _selectedTime;
-    final dateTime = await _pickDateTime(currentValue);
-    if (dateTime == null || !mounted) return;
+    final date = await _pickDate(currentValue);
+    if (date == null || !mounted) return;
+    final base = currentValue ?? _defaultDateTime();
+    _setDateTime(
+      DateTime(date.year, date.month, date.day, base.hour, base.minute),
+      isDeadline: isDeadline,
+    );
+  }
+
+  Future<void> _selectTime({required bool isDeadline}) async {
+    final currentValue = isDeadline ? _selectedDeadline : _selectedTime;
+    final time = await _pickTime(currentValue);
+    if (time == null || !mounted) return;
+    final base = currentValue ?? _defaultDateTime();
+    _setDateTime(
+      DateTime(base.year, base.month, base.day, time.hour, time.minute),
+      isDeadline: isDeadline,
+    );
+  }
+
+  void _setDateTime(DateTime dateTime, {required bool isDeadline}) {
     setState(() {
       if (isDeadline) {
         _selectedDeadline = dateTime;
@@ -287,133 +384,122 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
 class _DateTimeField extends StatelessWidget {
   final String label;
-  final IconData icon;
   final DateTime? value;
   final String? errorText;
-  final VoidCallback onPressed;
+  final VoidCallback onDatePressed;
+  final VoidCallback onTimePressed;
 
   const _DateTimeField({
     required this.label,
-    required this.icon,
     required this.value,
     required this.errorText,
-    required this.onPressed,
+    required this.onDatePressed,
+    required this.onTimePressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF7F9F8),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: errorText == null
-                    ? const Color(0xFFE1E7E4)
-                    : Theme.of(context).colorScheme.error,
+    final dateText = value == null
+        ? '日付'
+        : '${value!.year}/${value!.month}/${value!.day}';
+    final timeText = value == null
+        ? '時刻'
+        : TimeOfDay.fromDateTime(value!).format(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              _DateValue(
+                text: dateText,
+                selected: value != null,
+                onTap: onDatePressed,
+              ),
+              const SizedBox(width: 6),
+              _DateValue(
+                text: timeText,
+                selected: value != null,
+                onTap: onTimePressed,
+              ),
+            ],
+          ),
+          if (errorText != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                errorText!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 12,
+                ),
               ),
             ),
-            child: Row(
-              children: [
-                Icon(icon, color: const Color(0xFF16835B), size: 21),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF66736D),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        value == null ? '日時を選択' : formatDateTime(value!),
-                        style: TextStyle(
-                          color: value == null
-                              ? const Color(0xFF8B9691)
-                              : const Color(0xFF17211D),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Color(0xFF8B9691),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (errorText != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              errorText!,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.error,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        const SizedBox(height: 12),
-      ],
-    );
-  }
-}
-
-class _FormCard extends StatelessWidget {
-  final List<Widget> children;
-
-  const _FormCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE7EBE9)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A17211D),
-            blurRadius: 18,
-            offset: Offset(0, 5),
-          ),
         ],
       ),
-      child: Column(children: children),
     );
   }
 }
 
-class _FieldLabel extends StatelessWidget {
+class _DateValue extends StatelessWidget {
   final String text;
+  final bool selected;
+  final VoidCallback onTap;
 
-  const _FieldLabel(this.text);
+  const _DateValue({
+    required this.text,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Color(0xFF2D3A34),
-          fontSize: 15,
-          fontWeight: FontWeight.w700,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected
+              ? Theme.of(context).colorScheme.primaryContainer
+              : const Color(0xFFF0F3F1),
+          borderRadius: BorderRadius.circular(8),
         ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : const Color(0xFF8B9691),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String text;
+
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Color(0xFF66736D),
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
       ),
     );
   }
