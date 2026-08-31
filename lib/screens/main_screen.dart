@@ -229,6 +229,8 @@ class _MainScreenState extends State<MainScreen> {
                                       : '参加 ${post.participantCount}人',
                                 ),
                               ),
+                              _CapacityIndicator(post: post),
+                              const SizedBox(height: 6),
                             ],
                           ),
                           trailing: Row(
@@ -447,6 +449,61 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
+class _CapacityIndicator extends StatelessWidget {
+  final Post post;
+
+  const _CapacityIndicator({required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    if (post.number <= 0) {
+      return const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.all_inclusive_rounded, size: 15, color: Color(0xFF66736D)),
+          SizedBox(width: 5),
+          Text(
+            '定員なし',
+            style: TextStyle(fontSize: 12, color: Color(0xFF66736D)),
+          ),
+        ],
+      );
+    }
+
+    final remaining = (post.number - post.participantCount).clamp(
+      0,
+      post.number,
+    );
+    final isFull = remaining == 0;
+    final color = isFull
+        ? const Color(0xFF8B9691)
+        : Theme.of(context).colorScheme.primary;
+
+    return Row(
+      children: [
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              key: ValueKey('capacity-progress-${post.id}'),
+              value: (post.participantCount / post.number).clamp(0, 1),
+              minHeight: 6,
+              color: color,
+              backgroundColor: const Color(0xFFE1E7E4),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          isFull ? '満員' : '残り$remaining人',
+          key: ValueKey('remaining-capacity-${post.id}'),
+          style: TextStyle(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
 class _EmptyResults extends StatelessWidget {
   final bool hasFilters;
   final VoidCallback onClear;
