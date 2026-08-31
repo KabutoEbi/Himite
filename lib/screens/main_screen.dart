@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/post.dart';
 import '../utils/date_time_format.dart';
+import '../utils/app_messenger.dart';
 import '../widgets/participant_list.dart';
 import 'create_post_screen.dart';
 import 'post_detail_screen.dart';
@@ -210,10 +211,10 @@ class _MainScreenState extends State<MainScreen> {
                               builder: (_) => PostDetailScreen(
                                 post: post,
                                 currentUserId: widget.currentUserId,
-                                onToggleParticipate: widget.onToggleParticipate,
-                                onUpdatePost: widget.onUpdatePost,
-                                onDeletePost: widget.onDeletePost,
-                                onClosePost: widget.onClosePost,
+                                onToggleParticipate: _toggleParticipation,
+                                onUpdatePost: _updatePost,
+                                onDeletePost: _deletePost,
+                                onClosePost: _closePost,
                               ),
                             ),
                           ),
@@ -306,9 +307,7 @@ class _MainScreenState extends State<MainScreen> {
                                             : null,
                                       ),
                                       onPressed: canJoin
-                                          ? () => widget.onToggleParticipate(
-                                              post.id,
-                                            )
+                                          ? () => _toggleParticipation(post.id)
                                           : null,
                                       tooltip: isParticipating
                                           ? '参加を取り消す'
@@ -339,7 +338,44 @@ class _MainScreenState extends State<MainScreen> {
         builder: (_) => CreatePostScreen(currentUserId: widget.currentUserId),
       ),
     );
-    if (result != null) widget.onAddPost(result);
+    if (result == null || !mounted) return;
+    widget.onAddPost(result);
+    _showSnackBar('募集を作成しました');
+  }
+
+  void _toggleParticipation(String id) {
+    final post = _postById(id);
+    if (post == null) return;
+    final wasParticipating = post.isParticipating(widget.currentUserId);
+    widget.onToggleParticipate(id);
+    _showSnackBar(wasParticipating ? '参加を取り消しました' : '募集に参加しました');
+  }
+
+  void _updatePost(Post post) {
+    widget.onUpdatePost(post);
+    _showSnackBar('変更を保存しました');
+  }
+
+  void _deletePost(String id) {
+    widget.onDeletePost(id);
+    _showSnackBar('募集を削除しました');
+  }
+
+  void _closePost(String id) {
+    widget.onClosePost(id);
+    _showSnackBar('募集を終了しました');
+  }
+
+  Post? _postById(String id) {
+    for (final post in widget.posts) {
+      if (post.id == id) return post;
+    }
+    return null;
+  }
+
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    showSuccessMessage(context, message);
   }
 
   Future<void> _showFilterSheet(List<String> groups) async {

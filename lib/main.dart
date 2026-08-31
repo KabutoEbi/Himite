@@ -6,6 +6,7 @@ import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'models/post.dart';
 import 'repositories/post_repository.dart';
 import 'screens/main_screen.dart';
+import 'utils/app_messenger.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -122,6 +123,7 @@ class _MyAppState extends State<MyApp> {
     const primaryGreen = Color(0xFF16835B);
     const backgroundGray = Color(0xFFF4F6F5);
     return MaterialApp(
+      scaffoldMessengerKey: appScaffoldMessengerKey,
       title: 'Himite',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(

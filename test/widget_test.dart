@@ -134,6 +134,7 @@ void main() {
     expect(find.text('1/3人'), findsOneWidget);
     expect(find.text('あなた'), findsOneWidget);
     expect(find.text('参加を取り消す'), findsOneWidget);
+    expect(find.text('募集に参加しました'), findsOneWidget);
   });
 
   testWidgets('only the author sees the management menu', (tester) async {
