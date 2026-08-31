@@ -504,6 +504,10 @@ class _CapacityIndicator extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
 class _EmptyResults extends StatelessWidget {
   final bool hasFilters;
   final VoidCallback onClear;
