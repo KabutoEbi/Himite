@@ -8,6 +8,7 @@ import 'archive_screen.dart';
 import 'create_post_screen.dart';
 import 'notification_screen.dart';
 import 'post_detail_screen.dart';
+import 'settings_screen.dart';
 
 enum PostFilter { joining }
 
@@ -76,10 +77,20 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          tooltip: '募集を作成',
-          onPressed: _openCreatePost,
-          icon: const Icon(Icons.add_rounded),
+        leadingWidth: 104,
+        leading: Row(
+          children: [
+            IconButton(
+              tooltip: '設定',
+              onPressed: _openSettings,
+              icon: const Icon(Icons.settings_outlined),
+            ),
+            IconButton(
+              tooltip: '募集を作成',
+              onPressed: _openCreatePost,
+              icon: const Icon(Icons.add_rounded),
+            ),
+          ],
         ),
         title: const Text('Himite'),
         centerTitle: true,
@@ -316,6 +327,12 @@ class _MainScreenState extends State<MainScreen> {
     if (result == null || !mounted) return;
     widget.onAddPost(result);
     _showSnackBar('募集を作成しました');
+  }
+
+  Future<void> _openSettings() {
+    return Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute(builder: (_) => const SettingsScreen()));
   }
 
   Future<void> _openArchive() {
