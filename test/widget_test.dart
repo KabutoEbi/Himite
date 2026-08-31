@@ -169,6 +169,32 @@ void main() {
     expect(find.text('昼ごはん'), findsOneWidget);
   });
 
+  testWidgets('shows deadline notifications', (tester) async {
+    final post = _post(capacity: 3);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MainScreen(
+          posts: [post],
+          currentUserId: 'user-1',
+          onAddPost: (_) {},
+          onUpdatePost: (_) {},
+          onDeletePost: (_) {},
+          onClosePost: (_) {},
+          onToggleParticipate: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.text('1'), findsOneWidget);
+    await tester.tap(find.byTooltip('通知'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('通知'), findsOneWidget);
+    expect(find.text('締切が近づいています'), findsOneWidget);
+    expect(find.textContaining('昼ごはん'), findsOneWidget);
+  });
+
   testWidgets('opens details and allows participation', (tester) async {
     final post = _post(capacity: 3);
 
