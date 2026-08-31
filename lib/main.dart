@@ -119,10 +119,64 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    const primaryGreen = Color(0xFF16835B);
+    const backgroundGray = Color(0xFFF4F6F5);
     return MaterialApp(
       title: 'Himite',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: primaryGreen,
+          primary: primaryGreen,
+          surface: Colors.white,
+          surfaceContainerLowest: Colors.white,
+        ),
+        scaffoldBackgroundColor: backgroundGray,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Color(0xFF17211D),
+          elevation: 0,
+          centerTitle: false,
+          surfaceTintColor: Colors.transparent,
+          titleTextStyle: TextStyle(
+            color: Color(0xFF17211D),
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFFF7F9F8),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFE1E7E4)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFE1E7E4)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: primaryGreen, width: 1.5),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: primaryGreen,
+            foregroundColor: Colors.white,
+            minimumSize: const Size.fromHeight(54),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
         useMaterial3: true,
       ),
       home: MainScreen(
